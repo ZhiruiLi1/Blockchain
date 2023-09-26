@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+option go_package = "../pro";
+
+message Header {
+  uint32 version = 1;
+  string previous_hash = 2;
+  string merkle_root = 3;
+  string difficulty_target = 4;
+  uint32 nonce = 5;
+  uint32 timestamp = 6;
+}
+
+message TransactionInput {
+  string reference_transaction_hash = 1;
+  uint32 output_index = 2;
+  string unlocking_script = 3;
+}
+
+message TransactionOutput {
+  uint32 amount = 1;
+  string locking_script = 2;
+}
+
+message Transaction {
+  uint32 version = 1;
+  repeated TransactionInput inputs = 2;
+  repeated TransactionOutput outputs = 3;
+  uint32 lock_time = 4;
+}
+
+message Block {
+  Header header = 1;
+  repeated Transaction transactions = 2;
+}
+
+message BlockRecord {
+  Header header = 1;
+  uint32 height = 2;
+  uint32 number_of_transactions = 3;
+
+  string block_file = 4;
+  uint32 block_start_offset = 5;
+  uint32 block_end_offset = 6;
+
+  string undo_file = 7;
+  uint32 undo_start_offset = 8;
+  uint32 undo_end_offset = 9;
+}
+
+message CoinRecord {
+  uint32 version = 1;
+  repeated uint32 output_indexes = 2;
+  repeated uint32 amounts = 3;
+  repeated string locking_scripts = 4;
+}
+
+message UndoBlock {
+  repeated string transaction_input_hashes = 1;
+  repeated uint32 output_indexes = 2;
+  repeated uint32 amounts = 3;
+  repeated string locking_scripts = 4;
+}
+
+message Empty {}
+
+message VersionRequest {
+  uint32 version = 1; // a constant that defines the bitcoin P2P protocol version the client “speaks”
+  string addr_you = 2; // the IP address of the remote node as seen from this node
+  string addr_me = 3; // the IP address of the local node, as discovered by the local node
+  uint32 best_height = 4; // the block height of this node’s blockchain
+}
+
+message GetBlocksRequest {
+  string top_block_hash = 1; // the hash of the top block possessed
+  string addr_me = 2; // the IP address of the local node
+}
+
+// Also known as inv (inventory) (block_hashes should have a maximum size of 500)
+message GetBlocksResponse {
+  repeated string block_hashes = 1; // the hashes of all blocks above the given hash
+}
+
+message GetDataRequest {
+  string block_hash = 1; // the hash of the requested block
+}
+
+message GetDataResponse {
+  Block block = 1; // requested block
+}
+
+message Address {
+  string addr = 1; // actual address
+  uint32 last_seen = 2; // A unix timestamp or block number (pg 114)
+}
+
+message Addresses {
+  repeated Address addrs = 1; // array of known neighbor addresses
+}
+
+service Coin {
+  rpc ForwardTransaction(Transaction) returns (Empty);
+  rpc ForwardBlock(Block) returns (Empty);
+  // Establishes a one way connection to a node (may be reciprocated)
+  rpc Version(VersionRequest) returns (Empty);
+  // Gets maximum 500 blocks past block with top hash
+  rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse);
+  // Get a single block
+  rpc GetData(GetDataRequest) returns (GetDataResponse);
+  // Sends know addresses to neighbors, forwarded from node to node
+  rpc SendAddresses(Addresses) returns (Empty);
+  // Gets neighbor addresses from node (can be multicast with static addr_me)
+  rpc GetAddresses(Empty) returns (Addresses);
+}
